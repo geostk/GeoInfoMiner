@@ -26,8 +26,8 @@ from imp import reload
 reload(utils)
 
 # Basic setup
-str_input_path = r"E:\Research\LandCoverMapping\Experiment\qianshan\Final_2\Classification\ImageData\out\scale"
-str_output_path = r"E:\Research\LandCoverMapping\Experiment\qianshan\Final_2\Classification\ImageData\out\scaled"
+str_input_path = r"E:\Research\LandCoverMapping\Experiment\xiaolongshan\data\out\scale"
+str_output_path = r"E:\Research\LandCoverMapping\Experiment\xiaolongshan\data\out\scaled"
 
 for i in os.walk(str_input_path):
     for str_name in i[2]:

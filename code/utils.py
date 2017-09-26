@@ -20,27 +20,46 @@ def output_lables_to_tif(z_ps, class_file_path, rows, cols, geo_trans_list, proj
 # Output DataFrame as GeoTiff format
 def output_frame_to_tif(z_p_frame, class_file_path, rows, cols, geo_trans_list, 
                         proj_str, num_bands):
-
-    # Convert the result Frame to Matrix
-    result_matrix = np.empty((num_bands, rows, cols))
-    for nb in range(0, num_bands):
+    # When the number of bands larger than one
+    if num_bands > 1:
+        # Convert the result Frame to Matrix
+        result_matrix = np.empty((num_bands, rows, cols))
+        for nb in range(0, num_bands):
+            for i in range(0,rows):
+                result_matrix[:, i, :] = z_p_frame.loc[i*cols:(i+1)*cols-1].T 
+    
+        
+        # Output result in "GeoTiff" format           
+        driver=gdal.GetDriverByName("GTiff")
+        driver.Register()
+        outDataset = driver.Create(class_file_path, cols, rows, num_bands, gdal.GDT_Float64)
+        
+        # Define the projection coordinate system
+        outDataset.SetGeoTransform(geo_trans_list)
+        outDataset.SetProjection(proj_str)
+        for i in range(0,num_bands):
+            outDataset.GetRasterBand(i+1).WriteArray(result_matrix[i,:,:])
+        outDataset = None  
+        print('Done')
+        
+    # When there is only one band
+    else:
+        # Convert the result Frame to Matrix
+        result_matrix = np.empty((rows, cols))
         for i in range(0,rows):
-            result_matrix[:, i, :] = z_p_frame.loc[i*cols:(i+1)*cols-1].T 
-
+            result_matrix[i, :] = z_p_frame.loc[i*cols:(i+1)*cols-1].T 
     
-    # Output result in "GeoTiff" format           
-    driver=gdal.GetDriverByName("GTiff")
-    driver.Register()
-    outDataset = driver.Create(class_file_path, cols, rows, num_bands, gdal.GDT_Float64)
-    
-    # Define the projection coordinate system
-    outDataset.SetGeoTransform(geo_trans_list)
-    outDataset.SetProjection(proj_str)
-    for i in range(0,num_bands):
-        outDataset.GetRasterBand(i+1).WriteArray(result_matrix[i,:,:])
-    outDataset = None  
-    print('Done')
-    
+        # Output result in "GeoTiff" format           
+        driver=gdal.GetDriverByName("GTiff")
+        driver.Register()
+        outDataset = driver.Create(class_file_path, cols, rows, num_bands, gdal.GDT_Float64)
+        
+        # Define the projection coordinate system
+        outDataset.SetGeoTransform(geo_trans_list)
+        outDataset.SetProjection(proj_str)
+        outDataset.GetRasterBand(1).WriteArray(result_matrix[:,:])
+        outDataset = None  
+        print('Done')
     
 # Read and preprocess data
 def prepare_data(imagery_path, train_file_path, split_points):
@@ -72,13 +91,25 @@ def read_image(imagery_path):
     geo_trans_list = dataset.GetGeoTransform()
     proj_str = dataset.GetProjection()
     num_bands = dataset.RasterCount
-    # Unfold array into pandas DataFrame
-    rows = dsmatrix.shape[1]
-    cols = dsmatrix.shape[2]
-    data_array = dsmatrix[:,0,:]
-    for irow in range(1,rows):
-        tempmatirx = dsmatrix[:,irow,:]
-        data_array = np.hstack((data_array,tempmatirx))
+    
+    # Adapt to one bands or multi-bands
+    if num_bands > 1:
+        # Unfold array into pandas DataFrame
+        rows = dsmatrix.shape[1]
+        cols = dsmatrix.shape[2]
+        data_array = dsmatrix[:,0,:]
+        for irow in range(1,rows):
+            tempmatirx = dsmatrix[:,irow,:]
+            data_array = np.hstack((data_array,tempmatirx))
+    else:
+        # Unfold array into pandas DataFrame
+        rows = dsmatrix.shape[0]
+        cols = dsmatrix.shape[1]
+        data_array = dsmatrix[0,:]
+        for irow in range(1,rows):
+            tempmatirx = dsmatrix[irow,:]
+            data_array = np.hstack((data_array,tempmatirx))
+        
     data_frame = pd.DataFrame(data_array.T)
     
     return data_frame, rows, cols, geo_trans_list, proj_str, num_bands
